@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  role       String   @default("EMPLOYEE")
+  employee   Employee?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Role values: SUPER_ADMIN, ADMIN, HR_MANAGER, MANAGER, EMPLOYEE
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  managerId   String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Position {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  level       String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+}
+
+model Employee {
+  id             String      @id @default(cuid())
+  employeeId     String      @unique
+  userId         String      @unique
+  user           User        @relation(fields: [userId], references: [id])
+  firstName      String
+  lastName       String
+  email          String      @unique
+  phone          String?
+  dateOfBirth    DateTime?
+  gender         String?
+  address        String?
+  city           String?
+  country        String?
+  avatar         String?
+  departmentId   String?
+  department     Department? @relation(fields: [departmentId], references: [id])
+  positionId     String?
+  position       Position?   @relation(fields: [positionId], references: [id])
+  managerId      String?
+  manager        Employee?   @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates   Employee[]  @relation("ManagerSubordinates")
+  employmentType String      @default("FULL_TIME")
+  status         String      @default("ACTIVE")
+  joiningDate    DateTime
+  leavingDate    DateTime?
+  salary         Float?
+  bankAccount    String?
+  taxId          String?
+  nationalId     String?
+  emergencyName  String?
+  emergencyPhone String?
+  attendances    Attendance[]
+  leaveRequests  LeaveRequest[]
+  payslips       Payslip[]
+  performances   Performance[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Attendance {
+  id         String    @id @default(cuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  date       DateTime
+  clockIn    DateTime?
+  clockOut   DateTime?
+  status     String    @default("PRESENT")
+  workHours  Float?
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model LeaveType {
+  id           String         @id @default(cuid())
+  name         String         @unique
+  daysAllowed  Int
+  description  String?
+  leaveRequests LeaveRequest[]
+}
+
+model LeaveRequest {
+  id           String    @id @default(cuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  leaveTypeId  String
+  leaveType    LeaveType @relation(fields: [leaveTypeId], references: [id])
+  startDate    DateTime
+  endDate      DateTime
+  days         Int
+  reason       String?
+  status       String    @default("PENDING")
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Payslip {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  month         Int
+  year          Int
+  basicSalary   Float
+  allowances    Float    @default(0)
+  deductions    Float    @default(0)
+  tax           Float    @default(0)
+  netSalary     Float
+  status        String   @default("DRAFT")
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Performance {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employee     Employee @relation(fields: [employeeId], references: [id])
+  reviewerId   String?
+  period       String
+  rating       Float?
+  goals        String?
+  achievements String?
+  feedback     String?
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model JobPosting {
+  id           String        @id @default(cuid())
+  title        String
+  departmentId String?
+  description  String?
+  requirements String?
+  type         String        @default("FULL_TIME")
+  location     String?
+  salary       String?
+  status       String        @default("OPEN")
+  applications Application[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Application {
+  id           String     @id @default(cuid())
+  jobPostingId String
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id])
+  applicantName String
+  email        String
+  phone        String?
+  resumeUrl    String?
+  coverLetter  String?
+  status       String     @default("APPLIED")
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  priority  String   @default("NORMAL")
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

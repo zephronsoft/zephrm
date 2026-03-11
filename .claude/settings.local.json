@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(for f in employees departments attendance leaves payroll performance recruitment dashboard announcements)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//c/Users/vikas/Projects/hrm-app - Copy/backend/src/routes/**)",
+      "Bash(done)",
+      "Bash(npx prisma:*)",
+      "Bash(node:*)",
+      "Bash(cp:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
