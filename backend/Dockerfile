@@ -1,10 +1,10 @@
 # ============================================
 # HRM Backend - Enterprise Dockerfile
-# Multi-stage build for minimal production image
+# Multi-stage build - Debian slim for Prisma/OpenSSL compatibility
 # ============================================
 
 # ---- Build stage ----
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -24,14 +24,14 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ---- Production stage ----
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
-# Install wget for health check (lightweight)
-RUN apk add --no-cache wget
+# Install wget for health check + OpenSSL/libs for Prisma
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Security: run as non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup -m appuser
 
 WORKDIR /app
 
@@ -49,7 +49,7 @@ RUN npx prisma generate
 
 USER appuser
 
-# Health check (wget more reliable than node http in minimal alpine)
+# Health check
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
   CMD wget -q --spider http://localhost:5000/health || exit 1
 
