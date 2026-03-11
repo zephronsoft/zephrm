@@ -49,12 +49,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           className={`h-16 flex items-center border-b flex-shrink-0 ${collapsed ? 'justify-center' : 'px-5 gap-3'}`}
           style={{ borderColor: 'rgba(255,255,255,0.07)' }}
         >
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}
-          >
-            <span className="text-white font-bold text-sm">H</span>
-          </div>
+          <img
+            src="/logo/logo.png"
+            alt="HRM Pro"
+            className="w-8 h-8 rounded-xl object-contain flex-shrink-0"
+          />
           {!collapsed && (
             <p className="font-extrabold text-base tracking-tight select-none">
               <span className="text-white">HRM</span>
