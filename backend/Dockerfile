@@ -26,6 +26,9 @@ RUN npm prune --omit=dev
 # ---- Production stage ----
 FROM node:20-alpine AS production
 
+# Install wget for health check (lightweight)
+RUN apk add --no-cache wget
+
 # Security: run as non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
@@ -46,9 +49,9 @@ RUN npx prisma generate
 
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+# Health check (wget more reliable than node http in minimal alpine)
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
+  CMD wget -q --spider http://localhost:5000/health || exit 1
 
 EXPOSE 5000
 
