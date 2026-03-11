@@ -8,10 +8,10 @@ import { format } from 'date-fns';
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
 const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
-const statusStyle: Record<string, { bg: string; text: string }> = {
-  PENDING:  { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
-  APPROVED: { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
-  REJECTED: { bg: 'rgba(239,68,68,0.1)',   text: '#dc2626' },
+const statusStyle: Record<string, React.CSSProperties> = {
+  PENDING:  { backgroundColor: 'rgba(245,158,11,0.1)',  color: '#d97706' },
+  APPROVED: { backgroundColor: 'rgba(16,185,129,0.1)',  color: '#059669' },
+  REJECTED: { backgroundColor: 'rgba(239,68,68,0.1)',   color: '#dc2626' },
 };
 
 const inputCls = "w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none transition-all";
@@ -138,7 +138,7 @@ export const Leaves: React.FC = () => {
                 <td className="px-5 py-3.5 text-[13px] text-slate-500 max-w-[140px] truncate">{req.reason || '—'}</td>
                 <td className="px-5 py-3.5">
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                    style={statusStyle[req.status] || { bg: '#f1f5f9', text: '#64748b' }}>
+                    style={statusStyle[req.status] || { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                     {req.status}
                   </span>
                 </td>

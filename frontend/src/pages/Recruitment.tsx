@@ -15,11 +15,11 @@ const JOB_COLORS = [
   'linear-gradient(135deg,#f59e0b,#fb923c)',
 ];
 
-const appStatusStyle: Record<string, { bg: string; text: string }> = {
-  APPLIED:   { bg: 'rgba(99,102,241,0.1)',  text: '#6366f1' },
-  INTERVIEW: { bg: 'rgba(6,182,212,0.1)',   text: '#0891b2' },
-  HIRED:     { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
-  REJECTED:  { bg: 'rgba(239,68,68,0.1)',   text: '#dc2626' },
+const appStatusStyle: Record<string, React.CSSProperties> = {
+  APPLIED:   { backgroundColor: 'rgba(99,102,241,0.1)',  color: '#6366f1' },
+  INTERVIEW: { backgroundColor: 'rgba(6,182,212,0.1)',   color: '#0891b2' },
+  HIRED:     { backgroundColor: 'rgba(16,185,129,0.1)',  color: '#059669' },
+  REJECTED:  { backgroundColor: 'rgba(239,68,68,0.1)',   color: '#dc2626' },
 };
 
 export const Recruitment: React.FC = () => {
@@ -162,7 +162,7 @@ export const Recruitment: React.FC = () => {
                   <td className="px-5 py-3.5 text-[13px] text-slate-500">{format(new Date(app.createdAt), 'MMM dd, yyyy')}</td>
                   <td className="px-5 py-3.5">
                     <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                      style={appStatusStyle[app.status] || { bg: '#f1f5f9', text: '#64748b' }}>
+                      style={appStatusStyle[app.status] || { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                       {app.status}
                     </span>
                   </td>

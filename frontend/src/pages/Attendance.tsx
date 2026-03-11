@@ -3,11 +3,11 @@ import { Clock, UserCheck, UserX } from 'lucide-react';
 import api from '../lib/api';
 import { format } from 'date-fns';
 
-const statusStyle: Record<string, { bg: string; text: string }> = {
-  PRESENT: { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
-  ABSENT:  { bg: 'rgba(239,68,68,0.1)',   text: '#dc2626' },
-  LATE:    { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
-  HALF_DAY:{ bg: 'rgba(99,102,241,0.1)',  text: '#6366f1' },
+const statusStyle: Record<string, React.CSSProperties> = {
+  PRESENT: { backgroundColor: 'rgba(16,185,129,0.1)',  color: '#059669' },
+  ABSENT:  { backgroundColor: 'rgba(239,68,68,0.1)',   color: '#dc2626' },
+  LATE:    { backgroundColor: 'rgba(245,158,11,0.1)',  color: '#d97706' },
+  HALF_DAY:{ backgroundColor: 'rgba(99,102,241,0.1)',  color: '#6366f1' },
 };
 
 export const Attendance: React.FC = () => {
@@ -142,7 +142,7 @@ export const Attendance: React.FC = () => {
                 </td>
                 <td className="px-5 py-3.5">
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                    style={statusStyle[rec.status] || { bg: '#f1f5f9', text: '#64748b' }}>
+                    style={statusStyle[rec.status] || { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                     {rec.status}
                   </span>
                 </td>

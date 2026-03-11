@@ -101,7 +101,7 @@ export const ApiTest: React.FC = () => {
       setError(err.message || 'Request failed');
       if (err.response) {
         setResponse({
-          status: err.response.status,
+          status: err.response.status ?? 0,
           statusText: 'Error',
           headers: {},
           data: err.response.data,

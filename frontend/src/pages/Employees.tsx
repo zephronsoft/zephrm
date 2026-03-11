@@ -13,11 +13,11 @@ const emptyForm = {
   gender: '', address: '', city: '', country: '',
 };
 
-const statusStyle: Record<string, { bg: string; text: string }> = {
-  ACTIVE:     { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
-  INACTIVE:   { bg: 'rgba(100,116,139,0.1)', text: '#64748b' },
-  ON_LEAVE:   { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
-  TERMINATED: { bg: 'rgba(239,68,68,0.1)',   text: '#dc2626' },
+const statusStyle: Record<string, React.CSSProperties> = {
+  ACTIVE:     { backgroundColor: 'rgba(16,185,129,0.1)',  color: '#059669' },
+  INACTIVE:   { backgroundColor: 'rgba(100,116,139,0.1)', color: '#64748b' },
+  ON_LEAVE:   { backgroundColor: 'rgba(245,158,11,0.1)',  color: '#d97706' },
+  TERMINATED: { backgroundColor: 'rgba(239,68,68,0.1)',   color: '#dc2626' },
 };
 
 const InputField: React.FC<{
@@ -212,7 +212,7 @@ export const Employees: React.FC = () => {
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                      style={statusStyle[emp.status] || { bg: '#f1f5f9', text: '#64748b' }}>
+                      style={statusStyle[emp.status] || { backgroundColor: '#f1f5f9', color: '#64748b' }}>
                       {emp.status.replace('_', ' ')}
                     </span>
                   </td>
