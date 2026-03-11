@@ -4,7 +4,7 @@ import api from '../lib/api';
 interface User { id: string; email: string; role: string; employee?: any; }
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('hrm_token', data.token);
     localStorage.setItem('hrm_user', JSON.stringify(data.user));
     setUser(data.user);
+    return data.user;
   };
 
   const logout = () => {

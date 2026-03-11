@@ -1,0 +1,27 @@
+# Git and IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!DOCKER.md
+
+# Dependencies (installed in container)
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+*.tsbuildinfo
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Backups and temp
+backups
+*.log
+tmp
+temp

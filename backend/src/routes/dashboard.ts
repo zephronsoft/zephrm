@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -20,12 +20,12 @@ router.get('/stats', authenticate, async (_req, res: Response) => {
   } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
-router.get('/recent-employees', authenticate, async (_req, res: Response) => {
+router.get('/recent-employees', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (_req, res: Response) => {
   const employees = await prisma.employee.findMany({ take: 5, orderBy: { createdAt: 'desc' }, include: { department: true, position: true } });
   res.json(employees);
 });
 
-router.get('/department-stats', authenticate, async (_req, res: Response) => {
+router.get('/department-stats', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (_req, res: Response) => {
   const departments = await prisma.department.findMany({ include: { _count: { select: { employees: true } } } });
   res.json(departments.map(d => ({ name: d.name, count: d._count.employees })));
 });

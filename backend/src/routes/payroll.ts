@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -12,15 +12,24 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const where: any = {};
     if (month) where.month = parseInt(month);
     if (year) where.year = parseInt(year);
+    if (!isAdmin(req.user?.role)) {
+      let employeeId = req.user?.employeeId;
+      if (!employeeId && req.user?.email) {
+        const emp = await prisma.employee.findUnique({ where: { email: req.user.email } });
+        employeeId = emp?.id;
+      }
+      if (!employeeId) return res.json({ payslips: [], total: 0 });
+      where.employeeId = employeeId;
+    }
     const [payslips, total] = await Promise.all([
-      prisma.payslip.findMany({ where, skip, take: parseInt(limit), include: { employee: { select: { firstName: true, lastName: true, employeeId: true, department: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.payslip.findMany({ where, skip, take: parseInt(limit), include: { employee: { select: { id: true, firstName: true, lastName: true, email: true, employeeId: true, department: true } } }, orderBy: { createdAt: 'desc' } }),
       prisma.payslip.count({ where }),
     ]);
     res.json({ payslips, total });
   } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
-router.post('/generate', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/generate', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
   try {
     const { month, year } = req.body;
     const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
@@ -36,8 +45,18 @@ router.post('/generate', authenticate, async (req: AuthRequest, res: Response) =
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 
-router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
-  const payslip = await prisma.payslip.update({ where: { id: req.params.id as string }, data: req.body });
+router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
+  const data: any = {};
+  if (req.body.basicSalary != null) data.basicSalary = Number(req.body.basicSalary);
+  if (req.body.allowances != null) data.allowances = Number(req.body.allowances);
+  if (req.body.deductions != null) data.deductions = Number(req.body.deductions);
+  if (req.body.tax != null) data.tax = Number(req.body.tax);
+  if (req.body.netSalary != null) data.netSalary = Number(req.body.netSalary);
+  if (req.body.status != null) {
+    data.status = req.body.status;
+    data.paidAt = req.body.status === 'PAID' ? new Date() : null;
+  }
+  const payslip = await prisma.payslip.update({ where: { id: req.params.id as string }, data });
   res.json(payslip);
 });
 

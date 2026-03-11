@@ -3,7 +3,11 @@ import { Users, Building2, Clock, Calendar, DollarSign, Briefcase, TrendingUp } 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { StatCard } from '../components/StatCard';
 import api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
 const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'];
 
@@ -15,6 +19,8 @@ const PageHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subt
 );
 
 export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role);
   const [stats, setStats] = useState<any>({});
   const [deptStats, setDeptStats] = useState<any[]>([]);
   const [recentEmployees, setRecentEmployees] = useState<any[]>([]);
@@ -22,18 +28,23 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
+    const fetches: Promise<any>[] = [
       api.get('/dashboard/stats'),
-      api.get('/dashboard/department-stats'),
-      api.get('/dashboard/recent-employees'),
       api.get('/announcements'),
-    ]).then(([s, d, e, a]) => {
-      setStats(s.data);
-      setDeptStats(d.data);
-      setRecentEmployees(e.data);
-      setAnnouncements(a.data);
-    }).finally(() => setLoading(false));
-  }, []);
+    ];
+    if (admin) {
+      fetches.push(api.get('/dashboard/department-stats'));
+      fetches.push(api.get('/dashboard/recent-employees'));
+    }
+    Promise.all(fetches).then((results) => {
+      setStats(results[0].data);
+      setAnnouncements(results[1].data);
+      if (admin && results.length > 2) {
+        setDeptStats(results[2].data);
+        setRecentEmployees(results[3].data);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [admin]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -61,7 +72,8 @@ export const Dashboard: React.FC = () => {
         <StatCard title="Open Positions"      value={stats.openJobs ?? 0}             icon={Briefcase} color="red" />
       </div>
 
-      {/* Charts */}
+      {/* Charts - admin only */}
+      {admin && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Bar chart */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6"
@@ -120,10 +132,12 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent employees */}
+      <div className={`grid gap-4 ${admin ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+        {/* Recent employees - admin only */}
+        {admin && (
         <div className="bg-white rounded-2xl p-6"
           style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <div className="flex items-center justify-between mb-4">
@@ -154,6 +168,7 @@ export const Dashboard: React.FC = () => {
             ))}
           </div>
         </div>
+        )}
 
         {/* Announcements */}
         <div className="bg-white rounded-2xl p-6"

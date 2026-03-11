@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Bell, X, AlertTriangle, Info } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
 const priorityConfig: Record<string, { bg: string; border: string; icon: typeof Bell; iconColor: string; badge: string; badgeText: string }> = {
   NORMAL: { bg: '#f8fafc',              border: '#6366f1', icon: Info,         iconColor: '#6366f1', badge: 'rgba(99,102,241,0.1)',  badgeText: '#6366f1' },
@@ -11,6 +15,8 @@ const priorityConfig: Record<string, { bg: string; border: string; icon: typeof 
 };
 
 export const Announcements: React.FC = () => {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -38,11 +44,13 @@ export const Announcements: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Announcements</h1>
           <p className="text-slate-500 text-sm mt-0.5">{announcements.length} announcements</p>
         </div>
+        {admin && (
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2.5 rounded-xl transition-all active:scale-95"
           style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
           <Plus size={16} /> New Announcement
         </button>
+        )}
       </div>
 
       {loading ? (

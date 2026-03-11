@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -10,7 +10,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const { employeeId, month, year, page = '1', limit = '20' } = req.query as any;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where: any = {};
-    if (employeeId) where.employeeId = employeeId;
+    if (!isAdmin(req.user?.role) && req.user?.employeeId) where.employeeId = req.user.employeeId;
+    else if (employeeId) where.employeeId = employeeId;
     if (month && year) {
       const start = new Date(parseInt(year), parseInt(month) - 1, 1);
       const end = new Date(parseInt(year), parseInt(month), 0);
@@ -26,20 +27,22 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/clock-in', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { employeeId } = req.body;
+    const empId = isAdmin(req.user?.role) ? req.body.employeeId : req.user?.employeeId;
+    if (!empId) return res.status(400).json({ message: 'Employee not linked to your account' });
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const existing = await prisma.attendance.findFirst({ where: { employeeId, date: today } });
+    const existing = await prisma.attendance.findFirst({ where: { employeeId: empId, date: today } });
     if (existing) return res.status(400).json({ message: 'Already clocked in today' });
-    const record = await prisma.attendance.create({ data: { employeeId, date: today, clockIn: new Date(), status: 'PRESENT' } });
+    const record = await prisma.attendance.create({ data: { employeeId: empId, date: today, clockIn: new Date(), status: 'PRESENT' } });
     res.status(201).json(record);
   } catch { res.status(500).json({ message: 'Server error' }); }
 });
 
 router.post('/clock-out', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { employeeId } = req.body;
+    const empId = isAdmin(req.user?.role) ? req.body.employeeId : req.user?.employeeId;
+    if (!empId) return res.status(400).json({ message: 'Employee not linked to your account' });
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const record = await prisma.attendance.findFirst({ where: { employeeId, date: today } });
+    const record = await prisma.attendance.findFirst({ where: { employeeId: empId, date: today } });
     if (!record) return res.status(404).json({ message: 'No clock-in found' });
     const clockOut = new Date();
     const workHours = record.clockIn ? (clockOut.getTime() - record.clockIn.getTime()) / 3600000 : 0;
@@ -50,7 +53,9 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res: Response) 
 
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const record = await prisma.attendance.create({ data: req.body });
+    const data = isAdmin(req.user?.role) ? req.body : { ...req.body, employeeId: req.user?.employeeId };
+    if (!data.employeeId) return res.status(400).json({ message: 'Employee not linked to your account' });
+    const record = await prisma.attendance.create({ data });
     res.status(201).json(record);
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });

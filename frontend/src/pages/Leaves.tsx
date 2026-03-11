@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Check, X, Calendar } from 'lucide-react';
+import { Plus, Check, X, Calendar, RotateCcw } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
 const statusStyle: Record<string, { bg: string; text: string }> = {
   PENDING:  { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
@@ -15,26 +19,32 @@ const inputStyle = { border: '1.5px solid #e2e8f0' };
 const focusStyle = { borderColor: '#6366f1', boxShadow: '0 0 0 3px rgba(99,102,241,0.1)' };
 
 export const Leaves: React.FC = () => {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role);
   const [requests, setRequests] = useState<any[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [myEmployeeId, setMyEmployeeId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [form, setForm] = useState({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', days: 1, reason: '' });
 
   const fetchData = async () => {
-    const [r, t, e] = await Promise.all([
+    const fetches: Promise<any>[] = [
       api.get('/leaves', { params: { status: statusFilter || undefined, limit: 50 } }),
       api.get('/leaves/types'),
-      api.get('/employees', { params: { limit: 100 } }),
-    ]);
-    setRequests(r.data.requests);
-    setLeaveTypes(t.data);
-    setEmployees(e.data.employees);
+    ];
+    if (admin) fetches.push(api.get('/employees', { params: { limit: 100 } }));
+    else fetches.push(api.get('/employees/me').catch(() => ({ data: null })));
+    const results = await Promise.all(fetches);
+    setRequests(results[0].data.requests);
+    setLeaveTypes(results[1].data);
+    if (admin) setEmployees(results[2].data?.employees || []);
+    else setMyEmployeeId(results[2].data?.id || '');
     setLoading(false);
   };
-  useEffect(() => { fetchData(); }, [statusFilter]);
+  useEffect(() => { fetchData(); }, [statusFilter, admin]);
 
   const handleApprove = async (id: string) => {
     await api.put(`/leaves/${id}/approve`); toast.success('Approved'); fetchData();
@@ -42,10 +52,16 @@ export const Leaves: React.FC = () => {
   const handleReject = async (id: string) => {
     await api.put(`/leaves/${id}/reject`); toast.success('Rejected'); fetchData();
   };
+  const handleRevert = async (id: string) => {
+    if (!confirm('Revert this leave request?')) return;
+    await api.delete(`/leaves/${id}`); toast.success('Leave reverted'); fetchData();
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = admin ? form : { ...form, employeeId: myEmployeeId };
+    if (!payload.employeeId) { toast.error('No employee profile linked'); return; }
     try {
-      await api.post('/leaves', form); toast.success('Leave request submitted');
+      await api.post('/leaves', payload); toast.success('Leave request submitted');
       setShowModal(false); fetchData();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
   };
@@ -58,7 +74,7 @@ export const Leaves: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Leave Management</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{pendingCount} pending approvals</p>
+          <p className="text-slate-500 text-sm mt-0.5">{admin ? `${pendingCount} pending approvals` : 'Your leave requests'}</p>
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2.5 rounded-xl transition-all active:scale-95"
@@ -129,14 +145,25 @@ export const Leaves: React.FC = () => {
                 <td className="px-5 py-3.5">
                   {req.status === 'PENDING' && (
                     <div className="flex gap-1">
-                      <button onClick={() => handleApprove(req.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
-                        <Check size={13} />
-                      </button>
-                      <button onClick={() => handleReject(req.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                        <X size={13} />
-                      </button>
+                      {admin && (
+                        <>
+                          <button onClick={() => handleApprove(req.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+                            <Check size={13} />
+                          </button>
+                          <button onClick={() => handleReject(req.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <X size={13} />
+                          </button>
+                        </>
+                      )}
+                      {!admin && (
+                        <button onClick={() => handleRevert(req.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                          title="Revert">
+                          <RotateCcw size={13} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>
@@ -158,29 +185,26 @@ export const Leaves: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {[
-                { label: 'Employee', el: (
+              {admin && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Employee</label>
                   <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} required
                     className={inputCls + ' bg-white appearance-none'} style={inputStyle}
                     onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}>
                     <option value="">Select Employee</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
                   </select>
-                )},
-                { label: 'Leave Type', el: (
-                  <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} required
-                    className={inputCls + ' bg-white appearance-none'} style={inputStyle}
-                    onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}>
-                    <option value="">Select Type</option>
-                    {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                )},
-              ].map(({ label, el }) => (
-                <div key={label}>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
-                  {el}
                 </div>
-              ))}
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Leave Type</label>
+                <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} required
+                  className={inputCls + ' bg-white appearance-none'} style={inputStyle}
+                  onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}>
+                  <option value="">Select Type</option>
+                  {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {[['Start Date', 'startDate', 'date'], ['End Date', 'endDate', 'date']].map(([label, key, type]) => (
                   <div key={key}>

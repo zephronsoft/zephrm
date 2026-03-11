@@ -3,11 +3,12 @@ import { Plus, Search, Edit2, Trash2, Loader2, X, User, ChevronLeft, ChevronRigh
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { COUNTRIES } from '../lib/countries';
 
 /* ── helpers ── */
 const emptyForm = {
   firstName: '', lastName: '', email: '', phone: '',
-  departmentId: '', salary: '', status: 'ACTIVE', employmentType: 'FULL_TIME',
+  departmentId: '', positionId: '', salary: '', status: 'ACTIVE', employmentType: 'FULL_TIME',
   joiningDate: new Date().toISOString().split('T')[0],
   gender: '', address: '', city: '', country: '',
 };
@@ -22,11 +23,12 @@ const statusStyle: Record<string, { bg: string; text: string }> = {
 const InputField: React.FC<{
   label: string; value: string; onChange: (v: string) => void;
   type?: string; placeholder?: string; disabled?: boolean;
-}> = ({ label, value, onChange, type = 'text', placeholder, disabled }) => (
+  min?: number; step?: string;
+}> = ({ label, value, onChange, type = 'text', placeholder, disabled, min, step }) => (
   <div>
     <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
     <input type={type} value={value} onChange={e => onChange(e.target.value)}
-      placeholder={placeholder} disabled={disabled}
+      placeholder={placeholder} disabled={disabled} min={min} step={step}
       className="w-full px-3 py-2.5 rounded-xl text-sm text-slate-800 outline-none transition-all disabled:opacity-50"
       style={{ border: '1.5px solid #e2e8f0', background: disabled ? '#f8fafc' : '#fff' }}
       onFocus={e => { if (!disabled) { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; } }}
@@ -79,7 +81,15 @@ export const Employees: React.FC = () => {
     finally { setLoading(false); }
   }, [search, selectedDept, page]);
 
-  useEffect(() => { api.get('/departments').then(r => setDepartments(r.data)); }, []);
+  const [positions, setPositions] = useState<any[]>([]);
+  const fetchPositions = useCallback(() => {
+    api.get('/positions').then(r => setPositions(r.data || [])).catch(() => setPositions([]));
+  }, []);
+  useEffect(() => { api.get('/departments').then(r => setDepartments(r.data)).catch(() => {}); }, []);
+  useEffect(() => { fetchPositions(); }, [fetchPositions]);
+  useEffect(() => {
+    if (showModal) fetchPositions();
+  }, [showModal, fetchPositions]);
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   const handleDelete = async (id: string) => {
@@ -248,7 +258,7 @@ export const Employees: React.FC = () => {
       {/* Add / Edit Modal */}
       {showModal && (
         <EmployeeModal
-          employee={editingEmployee} departments={departments}
+          employee={editingEmployee} departments={departments} positions={positions}
           onClose={() => { setShowModal(false); setEditingEmployee(null); }}
           onSave={() => { setShowModal(false); setEditingEmployee(null); fetchEmployees(); }}
         />
@@ -332,9 +342,9 @@ export const Employees: React.FC = () => {
 
 /* ── Employee Modal ── */
 const EmployeeModal: React.FC<{
-  employee: any; departments: any[];
+  employee: any; departments: any[]; positions: any[];
   onClose: () => void; onSave: () => void;
-}> = ({ employee, departments, onClose, onSave }) => {
+}> = ({ employee, departments, positions, onClose, onSave }) => {
   const isEdit = !!employee;
   const [form, setForm] = useState({ ...emptyForm, ...(employee ? {
     firstName: employee.firstName || '',
@@ -342,7 +352,8 @@ const EmployeeModal: React.FC<{
     email: employee.email || '',
     phone: employee.phone || '',
     departmentId: employee.department?.id || employee.departmentId || '',
-    salary: employee.salary?.toString() || '',
+    positionId: employee.position?.id || employee.positionId || '',
+    salary: employee.salary != null ? String(employee.salary) : '',
     status: employee.status || 'ACTIVE',
     employmentType: employee.employmentType || 'FULL_TIME',
     joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -362,22 +373,57 @@ const EmployeeModal: React.FC<{
       setTab('basic');
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      toast.error('Please enter a valid email address');
+      setTab('basic');
+      return;
+    }
     setSaving(true);
     try {
       if (isEdit) {
-        await api.put(`/employees/${employee.id}`, form);
+        const payload = {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || '',
+          departmentId: form.departmentId || '',
+          positionId: form.positionId || '',
+          salary: form.salary.trim() || '',
+          status: form.status,
+          employmentType: form.employmentType,
+          joiningDate: form.joiningDate,
+          gender: form.gender.trim() || '',
+          address: form.address.trim() || '',
+          city: form.city.trim() || '',
+          country: form.country.trim() || '',
+        };
+        await api.put(`/employees/${employee.id}`, payload);
         toast.success('Employee updated!');
       } else {
-        const userRes = await api.post('/auth/register', { email: form.email.trim(), password: 'Welcome@123', role: 'EMPLOYEE' });
-        await api.post('/employees', { ...form, userId: userRes.data.id });
-        toast.success('Employee added! Default password: Welcome@123', { duration: 6000 });
+        const payload = {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || undefined,
+          departmentId: form.departmentId || undefined,
+          positionId: form.positionId || undefined,
+          salary: form.salary.trim() ? form.salary : undefined,
+          status: form.status,
+          employmentType: form.employmentType,
+          joiningDate: form.joiningDate,
+          gender: form.gender || undefined,
+          address: form.address.trim() || undefined,
+          city: form.city.trim() || undefined,
+          country: form.country.trim() || undefined,
+        };
+        await api.post('/employees', payload);
+        toast.success('Employee added! They can login with their email and password: Welcome@123', { duration: 6000 });
       }
       onSave();
     } catch (e: any) {
       const msg = e.response?.data?.message || 'Failed to save employee';
-      toast.error(msg.toLowerCase().includes('unique') || msg.toLowerCase().includes('already')
-        ? 'This email is already registered'
-        : msg);
+      toast.error(msg);
     } finally { setSaving(false); }
   };
 
@@ -429,6 +475,14 @@ const EmployeeModal: React.FC<{
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </SelectField>
+                  <SelectField label="Position" value={form.positionId} onChange={v => set('positionId', v)}>
+                    <option value="">Select Position</option>
+                    {positions.map((p) => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </SelectField>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <SelectField label="Status" value={form.status} onChange={v => set('status', v)}>
                     {['ACTIVE', 'INACTIVE', 'ON_LEAVE', 'TERMINATED'].map(s => (
                       <option key={s} value={s}>{s.replace('_', ' ')}</option>
@@ -444,7 +498,15 @@ const EmployeeModal: React.FC<{
                     <option key={v} value={v}>{l}</option>
                   ))}
                 </SelectField>
-                <InputField label="Annual Salary ($)" value={form.salary} onChange={v => set('salary', v)} type="number" placeholder="50000" />
+                <InputField
+                  label="Annual Salary ($)"
+                  value={form.salary}
+                  onChange={v => set('salary', v)}
+                  type="number"
+                  placeholder="50000"
+                  min={0}
+                  step="0.01"
+                />
                 <InputField label="Joining Date" value={form.joiningDate} onChange={v => set('joiningDate', v)} type="date" />
               </>
             )}
@@ -457,7 +519,12 @@ const EmployeeModal: React.FC<{
                 <InputField label="Address" value={form.address} onChange={v => set('address', v)} placeholder="123 Main St" />
                 <div className="grid grid-cols-2 gap-4">
                   <InputField label="City" value={form.city} onChange={v => set('city', v)} placeholder="New York" />
-                  <InputField label="Country" value={form.country} onChange={v => set('country', v)} placeholder="USA" />
+                  <SelectField label="Country" value={form.country} onChange={v => set('country', v)}>
+                    <option value="">Select Country</option>
+                    {COUNTRIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </SelectField>
                 </div>
               </>
             )}

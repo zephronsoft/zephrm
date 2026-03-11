@@ -18,6 +18,15 @@ model User {
 }
 
 // Role values: SUPER_ADMIN, ADMIN, HR_MANAGER, MANAGER, EMPLOYEE
+// SUPER_ADMIN = owner, ADMIN = admin (both can manage departments when customizeOrg is enabled)
+
+model Organization {
+  id             String   @id @default(cuid())
+  name           String   @default("My Organization")
+  customizeOrg   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
 
 model Department {
   id          String     @id @default(cuid())

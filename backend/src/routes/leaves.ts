@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -16,7 +16,7 @@ router.get('/types', authenticate, async (_req, res: Response) => {
   res.json(types);
 });
 
-router.post('/types', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/types', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
   try {
     const type = await prisma.leaveType.create({ data: req.body });
     res.status(201).json(type);
@@ -31,7 +31,9 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const limit = parseInt(req.query.limit as string || '20');
     const skip = (page - 1) * limit;
     const where: any = {};
-    if (employeeId) where.employeeId = employeeId;
+    if (!isAdmin(req.user?.role) && req.user?.employeeId) {
+      where.employeeId = req.user.employeeId;
+    } else if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
     const [requests, total] = await Promise.all([
       prisma.leaveRequest.findMany({
@@ -50,10 +52,13 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { startDate, endDate, days, ...rest } = req.body;
+    const { startDate, endDate, days, employeeId, ...rest } = req.body;
+    const empId = isAdmin(req.user?.role) ? employeeId : req.user?.employeeId;
+    if (!empId) return res.status(400).json({ message: 'Employee not linked to your account' });
     const request = await prisma.leaveRequest.create({
       data: {
         ...rest,
+        employeeId: empId,
         startDate: toDateTime(startDate)!,
         endDate: toDateTime(endDate)!,
         days: parseInt(String(days)),
@@ -64,7 +69,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 
-router.put('/:id/approve', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/:id/approve', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
   try {
     const updated = await prisma.leaveRequest.update({
       where: { id: req.params.id as string },
@@ -74,7 +79,7 @@ router.put('/:id/approve', authenticate, async (req: AuthRequest, res: Response)
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 
-router.put('/:id/reject', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/:id/reject', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
   try {
     const updated = await prisma.leaveRequest.update({
       where: { id: req.params.id as string },
@@ -86,7 +91,14 @@ router.put('/:id/reject', authenticate, async (req: AuthRequest, res: Response) 
 
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.leaveRequest.delete({ where: { id: req.params.id as string } });
+    const reqId = req.params.id as string;
+    const leave = await prisma.leaveRequest.findUnique({ where: { id: reqId } });
+    if (!leave) return res.status(404).json({ message: 'Leave request not found' });
+    if (!isAdmin(req.user?.role)) {
+      if (leave.employeeId !== req.user?.employeeId) return res.status(403).json({ message: 'You can only revert your own leave' });
+      if (leave.status !== 'PENDING') return res.status(400).json({ message: 'Only pending leave can be reverted' });
+    }
+    await prisma.leaveRequest.delete({ where: { id: reqId } });
     res.json({ message: 'Deleted' });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });

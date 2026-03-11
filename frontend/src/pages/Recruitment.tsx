@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Briefcase, Users, X, MapPin, DollarSign } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
 const JOB_COLORS = [
   'linear-gradient(135deg,#6366f1,#8b5cf6)',
@@ -19,6 +23,8 @@ const appStatusStyle: Record<string, { bg: string; text: string }> = {
 };
 
 export const Recruitment: React.FC = () => {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role);
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [tab, setTab] = useState<'jobs' | 'applications'>('jobs');
@@ -49,7 +55,7 @@ export const Recruitment: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Recruitment</h1>
           <p className="text-slate-500 text-sm mt-0.5">{openJobs} open positions</p>
         </div>
-        {tab === 'jobs' && (
+        {tab === 'jobs' && admin && (
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2.5 rounded-xl transition-all active:scale-95"
             style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
@@ -60,7 +66,7 @@ export const Recruitment: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f1f5f9', width: 'fit-content' }}>
-        {[['jobs', 'Job Postings'], ['applications', 'Applications']] .map(([key, label]) => (
+        {[['jobs', 'Job Postings'], ['applications', 'My Applications']].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key as any)}
             className="px-5 py-2 rounded-lg text-[13px] font-semibold transition-all"
             style={tab === key

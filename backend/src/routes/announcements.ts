@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -10,7 +10,7 @@ router.get('/', authenticate, async (_req, res: Response) => {
   res.json(announcements);
 });
 
-router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
   const ann = await prisma.announcement.create({ data: { ...req.body, createdById: req.user?.id } });
   res.status(201).json(ann);
 });

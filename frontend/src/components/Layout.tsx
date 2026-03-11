@@ -3,19 +3,23 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Calendar, Clock, DollarSign, TrendingUp,
-  Briefcase, Bell, LogOut, Menu, Building2, ChevronRight,
+  Briefcase, Bell, LogOut, Menu, Building2, ChevronRight, User,
 } from 'lucide-react';
 
-const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/employees', label: 'Employees', icon: Users },
-  { path: '/departments', label: 'Departments', icon: Building2 },
-  { path: '/attendance', label: 'Attendance', icon: Clock },
-  { path: '/leaves', label: 'Leave', icon: Calendar },
-  { path: '/payroll', label: 'Payroll', icon: DollarSign },
-  { path: '/performance', label: 'Performance', icon: TrendingUp },
-  { path: '/recruitment', label: 'Recruitment', icon: Briefcase },
-  { path: '/announcements', label: 'Announcements', icon: Bell },
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
+
+const allNavItems = [
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+  { path: '/employees', label: 'Employees', icon: Users, adminOnly: true },
+  { path: '/profile', label: 'My Profile', icon: User, adminOnly: false },
+  { path: '/departments', label: 'Departments', icon: Building2, adminOnly: true },
+  { path: '/attendance', label: 'Attendance', icon: Clock, adminOnly: true },
+  { path: '/leaves', label: 'Leave', icon: Calendar, adminOnly: false },
+  { path: '/payroll', label: 'Payroll', icon: DollarSign, adminOnly: false },
+  { path: '/performance', label: 'Performance', icon: TrendingUp, adminOnly: true },
+  { path: '/recruitment', label: 'Jobs', icon: Briefcase, adminOnly: false },
+  { path: '/announcements', label: 'Announcements', icon: Bell, adminOnly: false },
 ];
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -23,6 +27,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const admin = isAdmin(user?.role);
+  const navItems = allNavItems.filter((n) => !n.adminOnly || admin);
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const initials = (user?.email?.slice(0, 2) ?? 'HR').toUpperCase();

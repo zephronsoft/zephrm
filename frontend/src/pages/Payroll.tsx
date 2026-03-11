@@ -1,24 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, Zap, TrendingUp, Users, CreditCard } from 'lucide-react';
+import { DollarSign, Zap, TrendingUp, CreditCard, Pencil, X, Check } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
 
 export const Payroll: React.FC = () => {
+  const { user } = useAuth();
+  const admin = isAdmin(user?.role);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [generating, setGenerating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ basicSalary: 0, allowances: 0, deductions: 0, status: 'DRAFT' });
 
   const fetchPayroll = async () => {
     setLoading(true);
     const { data } = await api.get('/payroll', { params: { month, year, limit: 50 } });
-    setPayslips(data.payslips);
-    setTotal(data.total);
+    let list = data.payslips || [];
+    if (!admin && user?.email) {
+      list = list.filter((p: any) => p.employee?.email === user.email);
+    }
+    setPayslips(list);
+    setTotal(admin ? (data.total || 0) : list.length);
     setLoading(false);
   };
-  useEffect(() => { fetchPayroll(); }, [month, year]);
+  useEffect(() => { fetchPayroll(); }, [month, year, admin, user?.email]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -28,6 +40,22 @@ export const Payroll: React.FC = () => {
       fetchPayroll();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error generating payroll'); }
     finally { setGenerating(false); }
+  };
+
+  const startEdit = (p: any) => {
+    setEditingId(p.id);
+    setEditForm({ basicSalary: p.basicSalary, allowances: p.allowances, deductions: p.deductions, status: p.status });
+  };
+
+  const handleUpdate = async () => {
+    if (!editingId) return;
+    try {
+      const net = editForm.basicSalary + editForm.allowances - editForm.deductions;
+      await api.put(`/payroll/${editingId}`, { ...editForm, netSalary: net, tax: editForm.deductions });
+      toast.success('Payslip updated');
+      setEditingId(null);
+      fetchPayroll();
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Failed to update'); }
   };
 
   const totalNet   = payslips.reduce((s, p) => s + p.netSalary, 0);
@@ -41,24 +69,27 @@ export const Payroll: React.FC = () => {
     <div className="space-y-5 fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Payroll</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{total} payslips</p>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">{admin ? 'Payroll' : 'My Salary'}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{admin ? `${total} payslips` : 'Your salary details'}</p>
         </div>
+        {admin && (
         <button onClick={handleGenerate} disabled={generating}
           className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-60"
           style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
           <Zap size={15} className={generating ? 'animate-pulse' : ''} />
           {generating ? 'Generating…' : 'Generate Payroll'}
         </button>
+        )}
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — admin only */}
+      {admin && (
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Basic', value: `$${Math.round(totalBasic).toLocaleString()}`, icon: DollarSign, grad: 'linear-gradient(135deg,#6366f1,#818cf8)', soft: 'rgba(99,102,241,0.1)' },
           { label: 'Net Payable', value: `$${Math.round(totalNet).toLocaleString()}`,   icon: TrendingUp, grad: 'linear-gradient(135deg,#10b981,#34d399)', soft: 'rgba(16,185,129,0.1)' },
           { label: 'Paid',        value: `${paidCount} / ${total}`,                      icon: CreditCard, grad: 'linear-gradient(135deg,#f59e0b,#fb923c)', soft: 'rgba(245,158,11,0.1)' },
-        ].map(({ label, value, icon: Icon, grad, soft }) => (
+        ].map(({ label, value, icon: Icon, grad }) => (
           <div key={label} className="bg-white rounded-2xl p-5"
             style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <div className="flex items-center justify-between mb-3">
@@ -71,6 +102,7 @@ export const Payroll: React.FC = () => {
           </div>
         ))}
       </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3">
@@ -90,7 +122,7 @@ export const Payroll: React.FC = () => {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-              {['Employee', 'Department', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Status'].map(h => (
+              {['Employee', 'Department', 'Basic Salary', 'Allowances', 'Deductions', 'Net Salary', 'Status', ...(admin ? ['Actions'] : [])].map(h => (
                 <th key={h} className="text-left px-5 py-3.5 text-[11px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   {h}
                 </th>
@@ -99,16 +131,16 @@ export const Payroll: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-16">
+              <tr><td colSpan={admin ? 8 : 7} className="text-center py-16">
                 <div className="w-8 h-8 border-[3px] border-indigo-200 border-t-indigo-500 rounded-full animate-spin mx-auto" />
               </td></tr>
             ) : payslips.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-16">
+              <tr><td colSpan={admin ? 8 : 7} className="text-center py-16">
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                   <DollarSign size={22} className="text-slate-300" />
                 </div>
-                <p className="text-slate-500 font-semibold">No payslips yet</p>
-                <p className="text-slate-400 text-sm mt-1">Click "Generate Payroll" to create payslips</p>
+                <p className="text-slate-500 font-semibold">{admin ? 'No payslips yet' : 'No payslip for this period'}</p>
+                <p className="text-slate-400 text-sm mt-1">{admin ? 'Click "Generate Payroll" to create payslips' : 'Your payslip will appear here once processed'}</p>
               </td></tr>
             ) : payslips.map(p => (
               <tr key={p.id} className="hover:bg-slate-50/60 transition-colors" style={{ borderBottom: '1px solid #f8fafc' }}>
@@ -128,11 +160,68 @@ export const Payroll: React.FC = () => {
                     {p.status}
                   </span>
                 </td>
+                {admin && (
+                <td className="px-5 py-3.5">
+                  <button onClick={() => startEdit(p)} title="Edit"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    <Pencil size={14} />
+                  </button>
+                </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Edit modal */}
+      {editingId && admin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingId(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-slate-800">Update Payslip</h3>
+              <button onClick={() => setEditingId(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Basic Salary</label>
+                <input type="number" value={editForm.basicSalary} onChange={e => setEditForm(f => ({ ...f, basicSalary: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm border border-slate-200 outline-none focus:border-indigo-500" min={0} step={100} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Allowances</label>
+                <input type="number" value={editForm.allowances} onChange={e => setEditForm(f => ({ ...f, allowances: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm border border-slate-200 outline-none focus:border-indigo-500" min={0} step={100} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Deductions</label>
+                <input type="number" value={editForm.deductions} onChange={e => setEditForm(f => ({ ...f, deductions: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm border border-slate-200 outline-none focus:border-indigo-500" min={0} step={100} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm border border-slate-200 outline-none focus:border-indigo-500">
+                  <option value="DRAFT">Draft</option>
+                  <option value="PAID">Paid</option>
+                </select>
+              </div>
+              <p className="text-sm text-slate-500">Net: ${(editForm.basicSalary + editForm.allowances - editForm.deductions).toLocaleString()}</p>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => setEditingId(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200">
+                Cancel
+              </button>
+              <button onClick={handleUpdate} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
+                <Check size={16} /> Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
