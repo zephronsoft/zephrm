@@ -23,13 +23,18 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
-if ! docker compose version &>/dev/null && ! docker-compose version &>/dev/null; then
+# Use docker compose (V2) or docker-compose (standalone)
+if docker compose version &>/dev/null; then
+  DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &>/dev/null; then
+  DOCKER_COMPOSE="docker-compose"
+else
   echo "ERROR: Docker Compose not found. Install Docker Desktop or docker-compose."
   exit 1
 fi
 
 echo "  Docker: $(docker -v)"
-echo "  Compose: $(docker compose version 2>/dev/null || docker-compose -v)"
+echo "  Compose: $($DOCKER_COMPOSE version 2>/dev/null || $DOCKER_COMPOSE -v)"
 
 # --- 2. Root .env for Docker ---
 echo ""
@@ -55,12 +60,12 @@ fi
 # --- 3. Build images ---
 echo ""
 echo "[3/5] Building Docker images..."
-docker compose build
+$DOCKER_COMPOSE build
 
 # --- 4. Start containers ---
 echo ""
 echo "[4/5] Starting containers..."
-docker compose up -d
+$DOCKER_COMPOSE up -d
 
 # --- 5. Wait for backend, then seed ---
 echo ""
@@ -90,8 +95,8 @@ echo "  Frontend: http://localhost (or http://localhost:80)"
 echo "  Backend:  http://localhost:5000"
 echo ""
 echo "Commands:"
-echo "  docker compose logs -f   # View logs"
-echo "  docker compose down      # Stop"
+echo "  $DOCKER_COMPOSE logs -f   # View logs"
+echo "  $DOCKER_COMPOSE down      # Stop"
 echo ""
 echo "Default admin (if seeded): admin@hrm.com / admin123"
 echo ""

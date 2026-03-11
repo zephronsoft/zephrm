@@ -23,15 +23,21 @@ try {
     exit 1
 }
 
-try {
-    $composeVer = docker compose version 2>$null
-    if (-not $composeVer) { $composeVer = docker-compose -v }
-} catch {
+# Use docker compose (V2) or docker-compose (standalone)
+$DockerCompose = $null
+& docker compose version 2>$null
+if ($LASTEXITCODE -eq 0) {
+    $DockerCompose = "docker compose"
+} elseif (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    $DockerCompose = "docker-compose"
+}
+if (-not $DockerCompose) {
     Write-Host "ERROR: Docker Compose not found."
     exit 1
 }
 
 Write-Host "  Docker: $dockerVer"
+Write-Host "  Compose: $DockerCompose"
 
 # --- 2. Root .env for Docker ---
 Write-Host ""
@@ -59,12 +65,12 @@ FRONTEND_PORT=80
 # --- 3. Build images ---
 Write-Host ""
 Write-Host "[3/5] Building Docker images..."
-docker compose build
+Invoke-Expression "$DockerCompose build"
 
 # --- 4. Start containers ---
 Write-Host ""
 Write-Host "[4/5] Starting containers..."
-docker compose up -d
+Invoke-Expression "$DockerCompose up -d"
 
 # --- 5. Wait for backend, then seed ---
 Write-Host ""
@@ -97,8 +103,8 @@ Write-Host "  Frontend: http://localhost (or http://localhost:80)"
 Write-Host "  Backend:  http://localhost:5000"
 Write-Host ""
 Write-Host "Commands:"
-Write-Host "  docker compose logs -f   # View logs"
-Write-Host "  docker compose down      # Stop"
+Write-Host "  $DockerCompose logs -f   # View logs"
+Write-Host "  $DockerCompose down      # Stop"
 Write-Host ""
 Write-Host "Default admin (if seeded): admin@hrm.com / admin123"
 Write-Host ""
