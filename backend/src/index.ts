@@ -63,6 +63,26 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/status', apiStatusRoutes);
 
+app.get('/api/organization', authenticate, async (_req, res) => {
+  try {
+    let org = await prisma.organization.findFirst();
+    if (!org) org = await prisma.organization.create({ data: { name: 'My Organization' } });
+    res.json(org);
+  } catch (e: any) { res.status(500).json({ message: e?.message }); }
+});
+
+app.put('/api/organization', authenticate, async (req: any, res) => {
+  try {
+    const allowed = ['name', 'currency', 'customizeOrg'];
+    const data: any = {};
+    for (const k of allowed) if (req.body[k] !== undefined) data[k] = req.body[k];
+    let org = await prisma.organization.findFirst();
+    if (!org) org = await prisma.organization.create({ data: { name: 'My Organization', ...data } });
+    else org = await prisma.organization.update({ where: { id: org.id }, data });
+    res.json(org);
+  } catch (e: any) { res.status(500).json({ message: e?.message }); }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
 const PORT = process.env.PORT || 5000;

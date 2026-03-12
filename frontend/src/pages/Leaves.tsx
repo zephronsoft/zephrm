@@ -27,6 +27,7 @@ export const Leaves: React.FC = () => {
   const [myEmployeeId, setMyEmployeeId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [leaveTab, setLeaveTab] = useState<'basic' | 'details'>('basic');
   const [statusFilter, setStatusFilter] = useState('');
   const [form, setForm] = useState({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', days: 1, reason: '' });
 
@@ -76,7 +77,11 @@ export const Leaves: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Leave Management</h1>
           <p className="text-slate-500 text-sm mt-0.5">{admin ? `${pendingCount} pending approvals` : 'Your leave requests'}</p>
         </div>
-        <button onClick={() => setShowModal(true)}
+        <button
+          onClick={() => {
+            setShowModal(true);
+            setLeaveTab('basic');
+          }}
           className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2.5 rounded-xl transition-all active:scale-95"
           style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>
           <Plus size={16} /> New Request
@@ -173,71 +178,185 @@ export const Leaves: React.FC = () => {
         </table>
       </div>
 
-      {/* New Request Modal */}
+      {/* New Request Modal - centered like Add Employee */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl modal-in">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-12"
+          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[calc(100vh-6rem)] flex flex-col modal-in"
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <h2 className="font-bold text-slate-800">New Leave Request</h2>
+              <div>
+                <h2 className="font-bold text-slate-800">New Leave Request</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Fill in the details below</p>
+              </div>
               <button onClick={() => setShowModal(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {admin && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Employee</label>
-                  <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} required
-                    className={inputCls + ' bg-white appearance-none'} style={inputStyle}
-                    onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}>
-                    <option value="">Select Employee</option>
-                    {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
-                  </select>
+
+            {/* Tabs */}
+            <div className="flex px-6 gap-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              {[
+                ['basic', 'Basic Info'],
+                ['details', 'Dates & Reason'],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setLeaveTab(id as 'basic' | 'details')}
+                  className={`px-4 py-3 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
+                    leaveTab === id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Body + footer */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {leaveTab === 'basic' && (
+                  <>
+                    {admin && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Employee</label>
+                        <select
+                          value={form.employeeId}
+                          onChange={e => setForm({ ...form, employeeId: e.target.value })}
+                          required
+                          className={inputCls + ' bg-white appearance-none'}
+                          style={inputStyle}
+                          onFocus={e => Object.assign(e.target.style, focusStyle)}
+                          onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                        >
+                          <option value="">Select Employee</option>
+                          {employees.map(e => (
+                            <option key={e.id} value={e.id}>
+                              {e.firstName} {e.lastName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Leave Type</label>
+                      <select
+                        value={form.leaveTypeId}
+                        onChange={e => setForm({ ...form, leaveTypeId: e.target.value })}
+                        required
+                        className={inputCls + ' bg-white appearance-none'}
+                        style={inputStyle}
+                        onFocus={e => Object.assign(e.target.style, focusStyle)}
+                        onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                      >
+                        <option value="">Select Type</option>
+                        {leaveTypes.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Days</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={form.days}
+                        onChange={e => setForm({ ...form, days: Number(e.target.value) })}
+                        className={inputCls}
+                        style={inputStyle}
+                        onFocus={e => Object.assign(e.target.style, focusStyle)}
+                        onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {leaveTab === 'details' && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        ['Start Date', 'startDate', 'date'],
+                        ['End Date', 'endDate', 'date'],
+                      ].map(([label, key, type]) => (
+                        <div key={key}>
+                          <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
+                          <input
+                            type={type}
+                            value={(form as any)[key]}
+                            onChange={e => setForm({ ...form, [key]: e.target.value })}
+                            required
+                            className={inputCls}
+                            style={inputStyle}
+                            onFocus={e => Object.assign(e.target.style, focusStyle)}
+                            onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Reason</label>
+                      <textarea
+                        value={form.reason}
+                        onChange={e => setForm({ ...form, reason: e.target.value })}
+                        rows={3}
+                        className={inputCls + ' resize-none'}
+                        style={inputStyle}
+                        onFocus={e => Object.assign(e.target.style, focusStyle)}
+                        onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #f1f5f9' }}>
+                <div className="flex gap-1.5">
+                  {(['basic', 'details'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setLeaveTab(t)}
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: leaveTab === t ? 20 : 6, background: leaveTab === t ? '#6366f1' : '#e2e8f0' }}
+                    />
+                  ))}
                 </div>
-              )}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Leave Type</label>
-                <select value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} required
-                  className={inputCls + ' bg-white appearance-none'} style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}>
-                  <option value="">Select Type</option>
-                  {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[['Start Date', 'startDate', 'date'], ['End Date', 'endDate', 'date']].map(([label, key, type]) => (
-                  <div key={key}>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
-                    <input type={type} value={(form as any)[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} required
-                      className={inputCls} style={inputStyle}
-                      onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Days</label>
-                <input type="number" min="1" value={form.days} onChange={e => setForm({ ...form, days: Number(e.target.value) })}
-                  className={inputCls} style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Reason</label>
-                <textarea value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} rows={3}
-                  className={inputCls + ' resize-none'} style={inputStyle}
-                  onFocus={e => Object.assign(e.target.style, focusStyle)} onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                  style={{ border: '1.5px solid #e2e8f0' }}>
-                  Cancel
-                </button>
-                <button type="submit"
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-                  style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>
-                  Submit
-                </button>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    style={{ border: '1.5px solid #e2e8f0' }}
+                  >
+                    Cancel
+                  </button>
+                  {leaveTab !== 'details' ? (
+                    <button
+                      type="button"
+                      onClick={() => setLeaveTab('details')}
+                      className="px-4 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                      style={{ border: '1.5px solid rgba(99,102,241,0.3)' }}
+                    >
+                      Next →
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', minWidth: 130 }}
+                    >
+                      Submit
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
           </div>

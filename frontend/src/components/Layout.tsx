@@ -24,6 +24,7 @@ const allNavItems = [
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(true);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -137,27 +138,32 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div
+        className="flex-1 flex flex-col overflow-hidden min-w-0"
+        onMouseMove={(e) => setHeaderVisible(e.clientY < 80)}
+      >
         {/* Topbar */}
         <header
-          className="h-16 flex items-center justify-between px-6 flex-shrink-0 bg-white"
-          style={{ borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+          className={`sticky top-0 h-14 flex items-center justify-between px-6 bg-white transition-transform duration-300 ${
+            headerVisible ? 'translate-y-0' : '-translate-y-full'
+          }`}
+          style={{ borderBottom: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', zIndex: 20 }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setCollapsed(c => !c)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <Menu size={18} />
             </button>
-            <div className="hidden sm:flex items-center gap-1.5 text-sm">
-              <span className="text-slate-400 font-medium">HRM</span>
-              <ChevronRight size={13} className="text-slate-300" />
-              <span className="font-semibold text-slate-700">{currentPage}</span>
-            </div>
+            <nav className="flex items-center gap-1.5 text-sm min-w-0" aria-label="Breadcrumb">
+              <span className="text-slate-400 font-medium truncate">HRM</span>
+              <ChevronRight size={13} className="text-slate-300 flex-shrink-0" aria-hidden />
+              <span className="font-semibold text-slate-700 truncate">{currentPage}</span>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button className="relative w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
               <Bell size={17} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-500 rounded-full ring-2 ring-white" />

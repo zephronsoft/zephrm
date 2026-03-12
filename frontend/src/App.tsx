@@ -13,6 +13,7 @@ import { Leaves } from './pages/Leaves';
 import { Payroll } from './pages/Payroll';
 import { Performance } from './pages/Performance';
 import { Recruitment } from './pages/Recruitment';
+import { JobDetail } from './pages/JobDetail';
 import { Announcements } from './pages/Announcements';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
@@ -56,6 +57,7 @@ const AppRoutes = () => {
       <Route path="/payroll" element={<PrivateRoute><Payroll /></PrivateRoute>} />
       <Route path="/performance" element={<AdminRoute><Performance /></AdminRoute>} />
       <Route path="/recruitment" element={<PrivateRoute><Recruitment /></PrivateRoute>} />
+      <Route path="/recruitment/:id" element={<PrivateRoute><JobDetail /></PrivateRoute>} />
       <Route path="/announcements" element={<PrivateRoute><Announcements /></PrivateRoute>} />
       <Route path="*" element={<FallbackRedirect />} />
     </Routes>

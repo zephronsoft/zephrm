@@ -33,7 +33,23 @@ router.post('/generate', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MAN
   try {
     const { month, year } = req.body;
     const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
-    const payslips = await Promise.all(employees.map(async (emp) => {
+    if (employees.length === 0) {
+      return res.json({ message: 'No active employees found', count: 0 });
+    }
+
+    // Find which employees already have a payslip for this month/year
+    const existing = await prisma.payslip.findMany({
+      where: { month, year, employeeId: { in: employees.map(e => e.id) } },
+      select: { employeeId: true },
+    });
+    const existingIds = new Set(existing.map(p => p.employeeId));
+    const missing = employees.filter(e => !existingIds.has(e.id));
+
+    if (missing.length === 0) {
+      return res.json({ message: `Payroll already generated for all ${employees.length} employees this period`, count: 0 });
+    }
+
+    const payslips = await Promise.all(missing.map(emp => {
       const basic = emp.salary || 0;
       const allowances = basic * 0.1;
       const tax = basic * 0.15;
@@ -41,7 +57,12 @@ router.post('/generate', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MAN
       const net = basic + allowances - deductions;
       return prisma.payslip.create({ data: { employeeId: emp.id, month, year, basicSalary: basic, allowances, deductions, tax, netSalary: net, status: 'DRAFT' } });
     }));
-    res.status(201).json({ message: `Generated ${payslips.length} payslips`, count: payslips.length });
+
+    const skipped = existingIds.size;
+    const msg = skipped > 0
+      ? `Generated ${payslips.length} new payslip${payslips.length !== 1 ? 's' : ''} (${skipped} already existed)`
+      : `Generated ${payslips.length} payslip${payslips.length !== 1 ? 's' : ''}`;
+    res.status(201).json({ message: msg, count: payslips.length });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 
@@ -58,6 +79,11 @@ router.put('/:id', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER')
   }
   const payslip = await prisma.payslip.update({ where: { id: req.params.id as string }, data });
   res.json(payslip);
+});
+
+router.delete('/:id', authenticate, authorize('SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'), async (req: AuthRequest, res: Response) => {
+  await prisma.payslip.delete({ where: { id: req.params.id as string } });
+  res.json({ message: 'Payslip deleted' });
 });
 
 export default router;

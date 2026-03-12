@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Briefcase, Users, X, MapPin, DollarSign } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Plus, Briefcase, Users, X, MapPin, DollarSign, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -22,15 +23,26 @@ const appStatusStyle: Record<string, React.CSSProperties> = {
   REJECTED:  { backgroundColor: 'rgba(239,68,68,0.1)',   color: '#dc2626' },
 };
 
+const EMPTY_FORM = {
+  title: '', location: '', type: 'FULL_TIME', experienceRequired: '',
+  jobSummary: '', responsibilities: '', requiredSkills: '', preferredSkills: '',
+  qualification: '', salary: '', salaryAndBenefits: '', aboutCompany: '',
+  howToApply: '', hrEmail: '', status: 'OPEN',
+};
+
 export const Recruitment: React.FC = () => {
   const { user } = useAuth();
   const admin = isAdmin(user?.role);
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [tab, setTab] = useState<'jobs' | 'applications'>('jobs');
   const [loading, setLoading] = useState(true);
+
+  // Post modal
   const [showModal, setShowModal] = useState(false);
-  const [jobForm, setJobForm] = useState({ title: '', description: '', requirements: '', type: 'FULL_TIME', location: '', salary: '', status: 'OPEN' });
+  const [jobFormTab, setJobFormTab] = useState<'basic' | 'details' | 'more'>('basic');
+  const [jobForm, setJobForm] = useState(EMPTY_FORM);
 
   const fetchData = async () => {
     const [j, a] = await Promise.all([api.get('/recruitment/jobs'), api.get('/recruitment/applications')]);
@@ -38,13 +50,56 @@ export const Recruitment: React.FC = () => {
   };
   useEffect(() => { fetchData(); }, []);
 
+  useEffect(() => {
+    if (!showModal) return;
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowModal(false); };
+    document.addEventListener('keydown', onEsc);
+    return () => document.removeEventListener('keydown', onEsc);
+  }, [showModal]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!jobForm.title.trim()) {
+      toast.error('Job title is required');
+      setJobFormTab('basic');
+      return;
+    }
     try {
-      await api.post('/recruitment/jobs', jobForm); toast.success('Job posted');
-      setShowModal(false); fetchData();
-    } catch { toast.error('Error posting job'); }
+      await api.post('/recruitment/jobs', jobForm);
+      toast.success('Job posted');
+      setShowModal(false); setJobFormTab('basic'); setJobForm(EMPTY_FORM); fetchData();
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Error posting job'); }
   };
+
+  const toggleJobStatus = async (job: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = job.status === 'OPEN' ? 'CLOSED' : 'OPEN';
+    try {
+      await api.put(`/recruitment/jobs/${job.id}`, { status: next });
+      toast.success(`Job ${next === 'OPEN' ? 'reopened' : 'closed'}`);
+      fetchData();
+    } catch {
+      toast.error('Failed to update job status');
+    }
+  };
+
+  const deleteJob = async (job: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Delete job "${job.title}"? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/recruitment/jobs/${job.id}`);
+      toast.success('Job deleted');
+      fetchData();
+    } catch {
+      toast.error('Failed to delete job');
+    }
+  };
+
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showModal || !bodyRef.current) return;
+    bodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [jobFormTab, showModal]);
 
   const openJobs = jobs.filter(j => j.status === 'OPEN').length;
 
@@ -92,7 +147,10 @@ export const Recruitment: React.FC = () => {
               <p className="text-slate-400 text-sm mt-1">Post your first job opening</p>
             </div>
           ) : jobs.map((job, i) => (
-            <div key={job.id} className="bg-white rounded-2xl p-5 transition-all duration-200"
+            <div
+              key={job.id}
+              onClick={() => navigate(`/recruitment/${job.id}`)}
+              className="bg-white rounded-2xl p-5 transition-all duration-200 cursor-pointer group"
               style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.09)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}
@@ -102,12 +160,32 @@ export const Recruitment: React.FC = () => {
                   style={{ background: JOB_COLORS[i % JOB_COLORS.length] }}>
                   <Briefcase size={18} className="text-white" />
                 </div>
-                <span className="text-[11px] font-semibold px-2 py-1 rounded-full"
-                  style={job.status === 'OPEN'
-                    ? { background: 'rgba(16,185,129,0.1)', color: '#059669' }
-                    : { background: 'rgba(100,116,139,0.1)', color: '#64748b' }}>
-                  {job.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold px-2 py-1 rounded-full"
+                    style={job.status === 'OPEN'
+                      ? { background: 'rgba(16,185,129,0.1)', color: '#059669' }
+                      : { background: 'rgba(100,116,139,0.1)', color: '#64748b' }}>
+                    {job.status}
+                  </span>
+                  {admin && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleJobStatus(job, e)}
+                        className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
+                      >
+                        {job.status === 'OPEN' ? 'Close' : 'Reopen'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => deleteJob(job, e)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <h3 className="font-bold text-slate-800 text-[15px]">{job.title}</h3>
               <div className="flex flex-wrap gap-3 mt-2">
@@ -133,7 +211,9 @@ export const Recruitment: React.FC = () => {
                   </div>
                   <span className="font-medium">{job._count?.applications ?? 0} applicants</span>
                 </div>
-                <span className="text-[11px] text-slate-400">{format(new Date(job.createdAt), 'MMM dd, yyyy')}</span>
+                <span className="flex items-center gap-0.5 text-[11px] text-indigo-400 font-semibold group-hover:text-indigo-600 transition-colors">
+                  View <ChevronRight size={12} />
+                </span>
               </div>
             </div>
           ))}
@@ -175,53 +255,90 @@ export const Recruitment: React.FC = () => {
 
       {/* Post Job Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto modal-in">
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-12"
+          onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
+          role="dialog" aria-modal="true" aria-labelledby="post-job-title"
+        >
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[calc(100vh-6rem)] flex flex-col modal-in"
+            onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <h2 className="font-bold text-slate-800">Post New Job</h2>
+              <div>
+                <h2 id="post-job-title" className="font-bold text-slate-800">Post New Job</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Fill in the details below</p>
+              </div>
               <button onClick={() => setShowModal(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {[['title', 'Job Title *', 'text', true], ['location', 'Location', 'text', false], ['salary', 'Salary Range', 'text', false]].map(([key, label, type, req]) => (
-                <div key={key as string}>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label as string}</label>
-                  <input type={type as string} value={(jobForm as any)[key as string]}
-                    onChange={e => setJobForm({ ...jobForm, [key as string]: e.target.value })}
-                    required={req as boolean}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none transition-all"
-                    style={{ border: '1.5px solid #e2e8f0' }}
-                    onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
+            <div className="flex px-6 gap-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              {[['basic', 'Basic Info'], ['details', 'Job Details'], ['more', 'More Info']].map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setJobFormTab(id as 'basic' | 'details' | 'more')}
+                  className={`px-4 py-3 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
+                    jobFormTab === id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}>
+                  {label}
+                </button>
               ))}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Type</label>
-                <select value={jobForm.type} onChange={e => setJobForm({ ...jobForm, type: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none bg-white transition-all appearance-none"
-                  style={{ border: '1.5px solid #e2e8f0' }}>
-                  {['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'].map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                </select>
+            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div ref={bodyRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+                {jobFormTab === 'basic' && (
+                  <>
+                    <Field label="Job Title *" value={jobForm.title} onChange={v => setJobForm({ ...jobForm, title: v })} required />
+                    <Field label="Location" value={jobForm.location} onChange={v => setJobForm({ ...jobForm, location: v })} />
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Employment Type</label>
+                      <select value={jobForm.type} onChange={e => setJobForm({ ...jobForm, type: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none bg-white" style={{ border: '1.5px solid #e2e8f0' }}>
+                        {['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'].map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+                      </select>
+                    </div>
+                    <Field label="Experience Required" value={jobForm.experienceRequired} onChange={v => setJobForm({ ...jobForm, experienceRequired: v })} />
+                    <Field label="Salary" value={jobForm.salary} onChange={v => setJobForm({ ...jobForm, salary: v })} />
+                    <Field label="HR Email (for resume submission)" type="email" value={jobForm.hrEmail} onChange={v => setJobForm({ ...jobForm, hrEmail: v })} placeholder="hr@company.com" />
+                  </>
+                )}
+                {jobFormTab === 'details' && (
+                  <>
+                    <TextArea label="Job Summary" value={jobForm.jobSummary} onChange={v => setJobForm({ ...jobForm, jobSummary: v })} rows={3} />
+                    <TextArea label="Responsibilities" value={jobForm.responsibilities} onChange={v => setJobForm({ ...jobForm, responsibilities: v })} rows={3} />
+                    <TextArea label="Required Skills" value={jobForm.requiredSkills} onChange={v => setJobForm({ ...jobForm, requiredSkills: v })} rows={2} />
+                    <TextArea label="Preferred Skills" value={jobForm.preferredSkills} onChange={v => setJobForm({ ...jobForm, preferredSkills: v })} rows={2} />
+                    <TextArea label="Qualification" value={jobForm.qualification} onChange={v => setJobForm({ ...jobForm, qualification: v })} rows={2} />
+                    <TextArea label="Salary and Benefits" value={jobForm.salaryAndBenefits} onChange={v => setJobForm({ ...jobForm, salaryAndBenefits: v })} rows={2} />
+                  </>
+                )}
+                {jobFormTab === 'more' && (
+                  <>
+                    <TextArea label="About the Company" value={jobForm.aboutCompany} onChange={v => setJobForm({ ...jobForm, aboutCompany: v })} rows={3} />
+                    <TextArea label="How to Apply" value={jobForm.howToApply} onChange={v => setJobForm({ ...jobForm, howToApply: v })} rows={3} />
+                  </>
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
-                <textarea value={jobForm.description} onChange={e => setJobForm({ ...jobForm, description: e.target.value })} rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none transition-all resize-none"
-                  style={{ border: '1.5px solid #e2e8f0' }}
-                  onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                  style={{ border: '1.5px solid #e2e8f0' }}>Cancel</button>
-                <button type="submit"
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-                  style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>Post Job</button>
+              <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid #f1f5f9' }}>
+                <div className="flex gap-1.5">
+                  {(['basic', 'details', 'more'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setJobFormTab(t)}
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: jobFormTab === t ? 20 : 6, background: jobFormTab === t ? '#6366f1' : '#e2e8f0' }} />
+                  ))}
+                </div>
+                <div className="flex gap-2.5">
+                  <button type="button" onClick={() => setShowModal(false)}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    style={{ border: '1.5px solid #e2e8f0' }}>Cancel</button>
+                  {jobFormTab !== 'more' ? (
+                    <button type="button" onClick={() => setJobFormTab(jobFormTab === 'basic' ? 'details' : 'more')}
+                      className="px-4 py-2.5 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                      style={{ border: '1.5px solid rgba(99,102,241,0.3)' }}>Next →</button>
+                  ) : (
+                    <button type="submit"
+                      className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', minWidth: 130 }}>Post Job</button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
@@ -230,3 +347,23 @@ export const Recruitment: React.FC = () => {
     </div>
   );
 };
+
+const Field = ({ label, value, onChange, type = 'text', required, placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string }) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
+    <input type={type} value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder}
+      className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none" style={{ border: '1.5px solid #e2e8f0' }}
+      onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+      onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
+  </div>
+);
+
+const TextArea = ({ label, value, onChange, rows = 3 }: { label: string; value: string; onChange: (v: string) => void; rows?: number }) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
+    <textarea value={value} onChange={e => onChange(e.target.value)} rows={rows}
+      className="w-full px-3.5 py-2.5 rounded-xl text-sm text-slate-800 outline-none resize-none" style={{ border: '1.5px solid #e2e8f0' }}
+      onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+      onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
+  </div>
+);

@@ -24,6 +24,7 @@ model Organization {
   id             String   @id @default(cuid())
   name           String   @default("My Organization")
   customizeOrg   Boolean  @default(true)
+  currency       String   @default("USD")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -140,6 +141,8 @@ model Payslip {
   status        String   @default("DRAFT")
   paidAt        DateTime?
   createdAt     DateTime @default(now())
+
+  @@unique([employeeId, month, year])
 }
 
 model Performance {
@@ -158,18 +161,28 @@ model Performance {
 }
 
 model JobPosting {
-  id           String        @id @default(cuid())
-  title        String
-  departmentId String?
-  description  String?
-  requirements String?
-  type         String        @default("FULL_TIME")
-  location     String?
-  salary       String?
-  status       String        @default("OPEN")
-  applications Application[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                 String        @id @default(cuid())
+  title              String
+  departmentId       String?
+  location           String?
+  type               String        @default("FULL_TIME")
+  experienceRequired String?
+  jobSummary         String?
+  responsibilities   String?
+  requiredSkills     String?
+  preferredSkills    String?
+  qualification      String?
+  salary             String?
+  salaryAndBenefits  String?
+  aboutCompany       String?
+  howToApply         String?
+  hrEmail            String?
+  description        String?
+  requirements       String?
+  status             String        @default("OPEN")
+  applications       Application[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 }
 
 model Application {
