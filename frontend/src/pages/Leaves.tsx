@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Check, X, Calendar, RotateCcw } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -19,6 +20,7 @@ const inputStyle = { border: '1.5px solid #e2e8f0' };
 const focusStyle = { borderColor: '#6366f1', boxShadow: '0 0 0 3px rgba(99,102,241,0.1)' };
 
 export const Leaves: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const admin = isAdmin(user?.role);
   const [requests, setRequests] = useState<any[]>([]);
@@ -28,7 +30,7 @@ export const Leaves: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [leaveTab, setLeaveTab] = useState<'basic' | 'details'>('basic');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [form, setForm] = useState({ employeeId: '', leaveTypeId: '', startDate: '', endDate: '', days: 1, reason: '' });
 
   const fetchData = async () => {

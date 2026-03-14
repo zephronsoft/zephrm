@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Plus, Briefcase, Users, X, MapPin, DollarSign, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -31,12 +31,14 @@ const EMPTY_FORM = {
 };
 
 export const Recruitment: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const admin = isAdmin(user?.role);
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [tab, setTab] = useState<'jobs' | 'applications'>('jobs');
+  const [jobStatusFilter, setJobStatusFilter] = useState(searchParams.get('status') || '');
   const [loading, setLoading] = useState(true);
 
   // Post modal
@@ -49,6 +51,18 @@ export const Recruitment: React.FC = () => {
     setJobs(j.data); setApplications(a.data); setLoading(false);
   };
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    const status = searchParams.get('status') || '';
+    setJobStatusFilter(status);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (jobStatusFilter) params.set('status', jobStatusFilter);
+    else params.delete('status');
+    setSearchParams(params, { replace: true });
+  }, [jobStatusFilter, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -102,6 +116,7 @@ export const Recruitment: React.FC = () => {
   }, [jobFormTab, showModal]);
 
   const openJobs = jobs.filter(j => j.status === 'OPEN').length;
+  const filteredJobs = jobs.filter((job) => !jobStatusFilter || job.status === jobStatusFilter);
 
   return (
     <div className="space-y-5 fade-in">
@@ -132,13 +147,35 @@ export const Recruitment: React.FC = () => {
         ))}
       </div>
 
+      {tab === 'jobs' && (
+        <div className="flex gap-2">
+          {[
+            { value: '', label: 'All' },
+            { value: 'OPEN', label: 'Open' },
+            { value: 'CLOSED', label: 'Closed' },
+          ].map((option) => (
+            <button
+              key={option.value || 'all'}
+              type="button"
+              onClick={() => setJobStatusFilter(option.value)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={jobStatusFilter === option.value
+                ? { background: '#6366f1', color: '#fff' }
+                : { background: '#fff', color: '#64748b', border: '1px solid #e2e8f0' }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-40">
           <div className="w-8 h-8 border-[3px] border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
         </div>
       ) : tab === 'jobs' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {jobs.length === 0 ? (
+          {filteredJobs.length === 0 ? (
             <div className="col-span-2 text-center py-16 bg-white rounded-2xl" style={{ border: '1px solid #f1f5f9' }}>
               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                 <Briefcase size={24} className="text-slate-300" />
@@ -146,7 +183,7 @@ export const Recruitment: React.FC = () => {
               <p className="text-slate-500 font-semibold">No job postings</p>
               <p className="text-slate-400 text-sm mt-1">Post your first job opening</p>
             </div>
-          ) : jobs.map((job, i) => (
+          ) : filteredJobs.map((job, i) => (
             <div
               key={job.id}
               onClick={() => navigate(`/recruitment/${job.id}`)}

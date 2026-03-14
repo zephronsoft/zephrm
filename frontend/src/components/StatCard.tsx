@@ -9,6 +9,7 @@ interface StatCardProps {
   icon: LucideIcon;
   color: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'indigo';
   trend?: { value: number; label: string };
+  onClick?: () => void;
 }
 
 const colorMap: Record<StatCardProps['color'], { grad: string; soft: string }> = {
@@ -20,13 +21,14 @@ const colorMap: Record<StatCardProps['color'], { grad: string; soft: string }> =
   indigo: { grad: 'linear-gradient(135deg,#6366f1,#818cf8)', soft: 'rgba(99,102,241,0.12)' },
 };
 
-export const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon, color, trend }) => {
+export const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon, color, trend, onClick }) => {
   const c = colorMap[color];
   const positive = (trend?.value ?? 0) >= 0;
 
   return (
     <div
-      className="bg-white rounded-2xl p-5 flex flex-col gap-4 group transition-all duration-200 cursor-default"
+      className={`bg-white rounded-2xl p-5 flex flex-col gap-4 group transition-all duration-200 ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+      onClick={onClick}
       style={{ border: '1px solid #f1f5f9', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.09)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}

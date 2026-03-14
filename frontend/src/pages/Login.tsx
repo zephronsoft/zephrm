@@ -13,13 +13,19 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
+  const isRestrictedNewJoiner = (user?: any) =>
+    user?.role === 'EMPLOYEE' && !!user?.employee && user?.employee?.status !== 'ACTIVE';
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const user = await login(email, password);
       toast.success('Welcome back!');
-      navigate(user?.role && ADMIN_ROLES.includes(user.role) ? '/' : '/announcements');
+      if (isRestrictedNewJoiner(user)) {
+        navigate('/onboarding');
+      } else {
+        navigate(user?.role && ADMIN_ROLES.includes(user.role) ? '/' : '/announcements');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Invalid credentials');
     } finally {

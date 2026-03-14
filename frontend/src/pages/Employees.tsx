@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, Loader2, X, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -55,6 +56,7 @@ const SelectField: React.FC<{
 
 /* ── Main component ── */
 export const Employees: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [employees, setEmployees] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -62,6 +64,7 @@ export const Employees: React.FC = () => {
   const [search, setSearch] = useState('');
   const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDept, setSelectedDept] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('ACTIVE'); // default: hide onboarding joiners (INACTIVE)
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
@@ -72,14 +75,33 @@ export const Employees: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await api.get('/employees', {
-        params: { search: search || undefined, department: selectedDept || undefined, page, limit: 10 },
+        params: {
+          search: search || undefined,
+          department: selectedDept || undefined,
+          status: selectedStatus || undefined,
+          page,
+          limit: 10,
+        },
       });
       setEmployees(data.employees);
       setTotal(data.total);
       setTotalPages(data.totalPages);
     } catch { toast.error('Failed to load employees'); }
     finally { setLoading(false); }
-  }, [search, selectedDept, page]);
+  }, [search, selectedDept, selectedStatus, page]);
+
+  useEffect(() => {
+    // null means param not in URL → default to ACTIVE; empty string means explicit "All"
+    const raw = searchParams.get('status');
+    setSelectedStatus(raw !== null ? raw : 'ACTIVE');
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (selectedStatus) params.set('status', selectedStatus);
+    else params.delete('status');
+    setSearchParams(params, { replace: true });
+  }, [selectedStatus, searchParams, setSearchParams]);
 
   const [positions, setPositions] = useState<any[]>([]);
   const fetchPositions = useCallback(() => {
@@ -153,6 +175,18 @@ export const Employees: React.FC = () => {
         >
           <option value="">All Departments</option>
           {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <select
+          value={selectedStatus}
+          onChange={e => { setSelectedStatus(e.target.value); setPage(1); }}
+          className="px-3 py-2.5 text-sm rounded-xl outline-none bg-white text-slate-700"
+          style={{ border: '1.5px solid #e2e8f0', minWidth: 160 }}
+        >
+          <option value="">All (incl. Onboarding)</option>
+          <option value="ACTIVE">Active</option>
+          <option value="ON_LEAVE">On Leave</option>
+          <option value="TERMINATED">Terminated</option>
+          <option value="INACTIVE">Onboarding / Inactive</option>
         </select>
       </div>
 

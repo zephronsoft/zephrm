@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Calendar, Clock, DollarSign, TrendingUp,
   Briefcase, Bell, LogOut, Menu, Building2, ChevronRight, User,
+  UserPlus, UserCheck, FileText, ShieldCheck, ChevronUp, FolderOpen, Settings,
 } from 'lucide-react';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
 const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
+const isRestrictedNewJoiner = (user?: any) =>
+  user?.role === 'EMPLOYEE' && !!user?.employee && user?.employee?.status !== 'ACTIVE';
 
 const allNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
@@ -22,19 +25,48 @@ const allNavItems = [
   { path: '/announcements', label: 'Announcements', icon: Bell, adminOnly: false },
 ];
 
+const extraNavItems = [
+  { path: '/candidates', label: 'Candidates', icon: UserPlus, adminOnly: false },
+  { path: '/onboarding', label: 'Onboarding', icon: UserCheck, adminOnly: false },
+  { path: '/policy-generator', label: 'Policy Generator', icon: ShieldCheck, adminOnly: true },
+  { path: '/policy-generator/saved', label: 'Saved Policies', icon: FolderOpen, adminOnly: false },
+  { path: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
+];
+
+const documentNavItems = [
+  { path: '/emp-documents/offer-letter', label: 'Offer Letter' },
+  { path: '/emp-documents/probation-letter', label: 'Probation Letter' },
+  { path: '/emp-documents/increment-letter', label: 'Increment Letter' },
+  { path: '/emp-documents/exit-letter', label: 'Exit Letter' },
+  { path: '/emp-documents/resignation', label: 'Resignation' },
+];
+
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
+  const [empDocsOpen, setEmpDocsOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const admin = isAdmin(user?.role);
-  const navItems = allNavItems.filter((n) => !n.adminOnly || admin);
+  const restrictedNewJoiner = isRestrictedNewJoiner(user);
+  const navItems = restrictedNewJoiner
+    ? []
+    : allNavItems.filter((n) => !n.adminOnly || admin);
+  const sectionItems = restrictedNewJoiner
+    ? [{ path: '/onboarding', label: 'Onboarding', icon: UserCheck, adminOnly: false }]
+    : extraNavItems.filter((n) => !n.adminOnly || admin);
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/emp-documents')) {
+      setEmpDocsOpen(true);
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
   const initials = (user?.email?.slice(0, 2) ?? 'HR').toUpperCase();
   const role = user?.role?.replace(/_/g, ' ') ?? '';
-  const currentPage = navItems.find(n =>
+  const currentPage = [...navItems, ...sectionItems, ...(restrictedNewJoiner ? [] : documentNavItems)].find(n =>
     n.path === '/' ? location.pathname === '/' : location.pathname.startsWith(n.path)
   )?.label ?? 'Dashboard';
 
@@ -78,6 +110,125 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             return (
               <Link
                 key={path} to={path}
+                title={collapsed ? label : undefined}
+                className={`group relative flex items-center ${collapsed ? 'justify-center mx-2 px-0 w-10 h-10' : 'mx-2 px-3 gap-3'} py-2.5 rounded-xl transition-all duration-150`}
+                style={active ? {
+                  background: 'linear-gradient(135deg,rgba(99,102,241,.3),rgba(139,92,246,.2))',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+                } : {}}
+              >
+                {active && !collapsed && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-400" />
+                )}
+                <Icon
+                  size={17}
+                  className={`flex-shrink-0 transition-colors ${active ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+                />
+                {!collapsed && (
+                  <span className={`text-[13px] font-medium truncate ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'} transition-colors`}>
+                    {label}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          {!collapsed && (
+            <p
+              className="text-[10px] font-semibold uppercase tracking-[0.12em] px-5 pt-3 pb-2"
+              style={{ color: 'rgba(255,255,255,0.22)' }}
+            >
+              HR Tools
+            </p>
+          )}
+
+          {sectionItems.slice(0, 2).map(({ path, label, icon: Icon }) => {
+            const active = location.pathname.startsWith(path);
+            return (
+              <Link
+                key={path}
+                to={path}
+                title={collapsed ? label : undefined}
+                className={`group relative flex items-center ${collapsed ? 'justify-center mx-2 px-0 w-10 h-10' : 'mx-2 px-3 gap-3'} py-2.5 rounded-xl transition-all duration-150`}
+                style={active ? {
+                  background: 'linear-gradient(135deg,rgba(99,102,241,.3),rgba(139,92,246,.2))',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+                } : {}}
+              >
+                {active && !collapsed && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-400" />
+                )}
+                <Icon
+                  size={17}
+                  className={`flex-shrink-0 transition-colors ${active ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+                />
+                {!collapsed && (
+                  <span className={`text-[13px] font-medium truncate ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'} transition-colors`}>
+                    {label}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          {!restrictedNewJoiner && (
+          <div className="mx-2">
+            <button
+              onClick={() => !collapsed && setEmpDocsOpen((v) => !v)}
+              title={collapsed ? 'Emp Documents' : undefined}
+              className={`group relative w-full flex items-center ${collapsed ? 'justify-center px-0 h-10' : 'px-3 gap-3'} py-2.5 rounded-xl transition-all duration-150`}
+              style={location.pathname.startsWith('/emp-documents') ? {
+                background: 'linear-gradient(135deg,rgba(99,102,241,.3),rgba(139,92,246,.2))',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+              } : {}}
+            >
+              {location.pathname.startsWith('/emp-documents') && !collapsed && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-400" />
+              )}
+              <FileText
+                size={17}
+                className={`flex-shrink-0 transition-colors ${location.pathname.startsWith('/emp-documents') ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+              />
+              {!collapsed && (
+                <>
+                  <span
+                    className={`text-[13px] font-medium truncate ${location.pathname.startsWith('/emp-documents') ? 'text-white' : 'text-slate-400 group-hover:text-white'} transition-colors`}
+                  >
+                    Emp Documents
+                  </span>
+                  <ChevronUp
+                    size={14}
+                    className={`ml-auto transition-transform ${empDocsOpen ? 'rotate-0' : 'rotate-180'} ${location.pathname.startsWith('/emp-documents') ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+                  />
+                </>
+              )}
+            </button>
+
+            {!collapsed && empDocsOpen && (
+              <div className="ml-5 mt-1 mb-2 border-l" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                {documentNavItems.map((item) => {
+                  const active = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`block px-4 py-2 text-[13px] transition-colors ${active ? 'text-indigo-300' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          )}
+
+          {!restrictedNewJoiner && sectionItems.slice(2).map(({ path, label, icon: Icon }) => {
+            const active = location.pathname.startsWith(path);
+            return (
+              <Link
+                key={path}
+                to={path}
                 title={collapsed ? label : undefined}
                 className={`group relative flex items-center ${collapsed ? 'justify-center mx-2 px-0 w-10 h-10' : 'mx-2 px-3 gap-3'} py-2.5 rounded-xl transition-all duration-150`}
                 style={active ? {

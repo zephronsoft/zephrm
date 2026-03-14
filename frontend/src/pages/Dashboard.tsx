@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Building2, Clock, Calendar, DollarSign, Briefcase, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from '../components/StatCard';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,7 @@ const PageHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subt
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const admin = isAdmin(user?.role);
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>({});
   const [deptStats, setDeptStats] = useState<any[]>([]);
   const [recentEmployees, setRecentEmployees] = useState<any[]>([]);
@@ -64,12 +66,50 @@ export const Dashboard: React.FC = () => {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Employees"    value={stats.totalEmployees ?? 0}      icon={Users}     color="indigo" trend={{ value: 12, label: 'vs last month' }} />
-        <StatCard title="Departments"         value={stats.departments ?? 0}          icon={Building2} color="purple" />
-        <StatCard title="Today's Attendance"  value={`${stats.attendanceRate ?? 0}%`} icon={Clock}     color="green"  subtitle={`${stats.todayAttendance ?? 0} checked in`} />
-        <StatCard title="Pending Leaves"      value={stats.pendingLeaves ?? 0}        icon={Calendar}  color="orange" />
-        <StatCard title="Active Employees"    value={stats.activeEmployees ?? 0}      icon={TrendingUp} color="blue" />
-        <StatCard title="Open Positions"      value={stats.openJobs ?? 0}             icon={Briefcase} color="red" />
+        <StatCard
+          title="Total Employees"
+          value={stats.totalEmployees ?? 0}
+          icon={Users}
+          color="indigo"
+          trend={{ value: 12, label: 'vs last month' }}
+          onClick={admin ? () => navigate('/employees') : undefined}
+        />
+        <StatCard
+          title="Departments"
+          value={stats.departments ?? 0}
+          icon={Building2}
+          color="purple"
+          onClick={admin ? () => navigate('/departments') : undefined}
+        />
+        <StatCard
+          title="Today's Attendance"
+          value={`${stats.attendanceRate ?? 0}%`}
+          icon={Clock}
+          color="green"
+          subtitle={`${stats.todayAttendance ?? 0} checked in`}
+          onClick={admin ? () => navigate('/attendance') : undefined}
+        />
+        <StatCard
+          title="Pending Leaves"
+          value={stats.pendingLeaves ?? 0}
+          icon={Calendar}
+          color="orange"
+          onClick={() => navigate('/leaves?status=PENDING')}
+        />
+        <StatCard
+          title="Active Employees"
+          value={stats.activeEmployees ?? 0}
+          icon={TrendingUp}
+          color="blue"
+          onClick={admin ? () => navigate('/employees?status=ACTIVE') : undefined}
+        />
+        <StatCard
+          title="Open Positions"
+          value={stats.openJobs ?? 0}
+          icon={Briefcase}
+          color="red"
+          onClick={() => navigate('/recruitment?status=OPEN')}
+        />
       </div>
 
       {/* Charts - admin only */}

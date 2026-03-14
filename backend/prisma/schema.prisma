@@ -72,6 +72,9 @@ model Employee {
   subordinates   Employee[]  @relation("ManagerSubordinates")
   employmentType String      @default("FULL_TIME")
   status         String      @default("ACTIVE")
+  offerLetterRefNo String?
+  offerLetterContent String?
+  offerLetterReleasedAt DateTime?
   joiningDate    DateTime
   leavingDate    DateTime?
   salary         Float?
@@ -82,10 +85,52 @@ model Employee {
   emergencyPhone String?
   attendances    Attendance[]
   leaveRequests  LeaveRequest[]
+  resignationsSubmitted Resignation[] @relation("ResignationEmployee")
+  resignationsReviewed  Resignation[] @relation("ResignationReviewer")
   payslips       Payslip[]
   performances   Performance[]
+  onboardingRecord OnboardingRecord?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+}
+
+model OnboardingRecord {
+  id             String   @id @default(cuid())
+  employeeId     String   @unique
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  stage          String   @default("CANDIDATE")
+  offerStatus    String   @default("PENDING")
+  docsUploaded   Int      @default(0)
+  docsRequired   Int      @default(7)
+  docsVerified   Boolean  @default(false)
+  bgvStatus      String   @default("Pending")
+  itEmail        String   @default("Pending")
+  itLaptop       String   @default("Pending")
+  itSlack        String   @default("Pending")
+  roleTitle      String?
+  departmentName String?
+  managerName    String?
+  checklistJson  String?
+  timelineJson   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Resignation {
+  id            String    @id @default(cuid())
+  employeeId    String
+  employee      Employee  @relation("ResignationEmployee", fields: [employeeId], references: [id])
+  reason        String
+  noticePeriodDays Int     @default(60)
+  lastWorkingDate DateTime
+  status        String    @default("PENDING")
+  reviewNote    String?
+  reviewedById  String?
+  reviewedBy    Employee? @relation("ResignationReviewer", fields: [reviewedById], references: [id])
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Attendance {

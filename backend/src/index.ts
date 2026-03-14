@@ -14,7 +14,10 @@ import performanceRoutes from './routes/performance';
 import recruitmentRoutes from './routes/recruitment';
 import dashboardRoutes from './routes/dashboard';
 import announcementRoutes from './routes/announcements';
+import resignationRoutes from './routes/resignations';
 import apiStatusRoutes, { statusPageHandler } from './routes/apiStatus';
+import mailerRoutes from './routes/mailer';
+import onboardingRoutes from './routes/onboarding';
 
 dotenv.config();
 
@@ -61,7 +64,10 @@ app.use('/api/performance', performanceRoutes);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/resignations', resignationRoutes);
 app.use('/api/status', apiStatusRoutes);
+app.use('/api/mailer', mailerRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 app.get('/api/organization', authenticate, async (_req, res) => {
   try {

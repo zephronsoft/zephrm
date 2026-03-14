@@ -18,6 +18,15 @@ services:
       - DATABASE_URL=file:/app/data/dev.db
       - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost}
+      - SMTP_ENABLED=${SMTP_ENABLED:-true}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-25}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-HRM Pro}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-no-reply@hrm.local}
     volumes:
       - hrm_data:/app/data
     healthcheck:
@@ -56,6 +65,45 @@ services:
         limits:
           memory: 256M
 
+  smtp:
+    build:
+      context: ./smtp-server
+      dockerfile: Dockerfile
+    container_name: hrm-internal-smtp
+    hostname: ${SMTP_INTERNAL_HOSTNAME:-smtp.internal.local}
+    restart: unless-stopped
+    profiles: ["relay"]
+    environment:
+      - SMTP_MYHOSTNAME=${SMTP_INTERNAL_HOSTNAME:-smtp.internal.local}
+      - SMTP_MYDOMAIN=${SMTP_INTERNAL_DOMAIN:-internal.local}
+      - SMTP_MYNETWORKS=${SMTP_INTERNAL_MYNETWORKS:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      - SMTP_RELAYHOST=${SMTP_RELAY_HOST:-}
+      - SMTP_RELAYHOST_PORT=${SMTP_RELAY_PORT:-587}
+      - SMTP_RELAY_USERNAME=${SMTP_RELAY_USERNAME:-}
+      - SMTP_RELAY_PASSWORD=${SMTP_RELAY_PASSWORD:-}
+      - SMTP_TLS_LEVEL=${SMTP_RELAY_TLS_LEVEL:-may}
+      - SMTP_MESSAGE_SIZE_LIMIT=${SMTP_MESSAGE_SIZE_LIMIT:-26214400}
+    ports:
+      - "${SMTP_INTERNAL_BIND_PORT_25:-2525}:25"
+      - "${SMTP_INTERNAL_BIND_PORT_587:-2587}:587"
+    volumes:
+      - smtp_spool:/var/spool/postfix
+      - smtp_logs:/var/log/postfix
+    healthcheck:
+      test: ["CMD-SHELL", "postfix status >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
 volumes:
   hrm_data:
     name: hrm_data
+  smtp_spool:
+    name: hrm_smtp_spool
+  smtp_logs:
+    name: hrm_smtp_logs

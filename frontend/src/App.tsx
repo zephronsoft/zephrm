@@ -15,9 +15,22 @@ import { Performance } from './pages/Performance';
 import { Recruitment } from './pages/Recruitment';
 import { JobDetail } from './pages/JobDetail';
 import { Announcements } from './pages/Announcements';
+import { Candidates } from './pages/Candidates';
+import { Onboarding } from './pages/Onboarding';
+import { OfferLetter } from './pages/OfferLetter';
+import { ProbationLetter } from './pages/ProbationLetter';
+import { IncrementLetter } from './pages/IncrementLetter';
+import { ExitLetter } from './pages/ExitLetter';
+import { Resignation } from './pages/Resignation';
+import { PolicyGenerator } from './pages/PolicyGenerator';
+import { PolicySavedDetail } from './pages/PolicySavedDetail';
+import { PolicySavedList } from './pages/PolicySavedList';
+import { SettingsPage } from './pages/SettingsPage';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HR_MANAGER'];
 const isAdmin = (role?: string) => role ? ADMIN_ROLES.includes(role) : false;
+const isRestrictedNewJoiner = (user?: any) =>
+  user?.role === 'EMPLOYEE' && !!user?.employee && user?.employee?.status !== 'ACTIVE';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -44,7 +57,19 @@ const FallbackRedirect: React.FC = () => {
 };
 
 const AppRoutes = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const restrictedNewJoiner = isRestrictedNewJoiner(user);
+
+  if (restrictedNewJoiner) {
+    return (
+      <Routes>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/onboarding" /> : <Login />} />
+        <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
@@ -58,6 +83,17 @@ const AppRoutes = () => {
       <Route path="/performance" element={<AdminRoute><Performance /></AdminRoute>} />
       <Route path="/recruitment" element={<PrivateRoute><Recruitment /></PrivateRoute>} />
       <Route path="/recruitment/:id" element={<PrivateRoute><JobDetail /></PrivateRoute>} />
+      <Route path="/candidates" element={<PrivateRoute><Candidates /></PrivateRoute>} />
+      <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
+      <Route path="/emp-documents/offer-letter" element={<PrivateRoute><OfferLetter /></PrivateRoute>} />
+      <Route path="/emp-documents/probation-letter" element={<PrivateRoute><ProbationLetter /></PrivateRoute>} />
+      <Route path="/emp-documents/increment-letter" element={<PrivateRoute><IncrementLetter /></PrivateRoute>} />
+      <Route path="/emp-documents/exit-letter" element={<PrivateRoute><ExitLetter /></PrivateRoute>} />
+      <Route path="/emp-documents/resignation" element={<PrivateRoute><Resignation /></PrivateRoute>} />
+      <Route path="/policy-generator" element={<AdminRoute><PolicyGenerator /></AdminRoute>} />
+      <Route path="/policy-generator/saved" element={<PrivateRoute><PolicySavedList /></PrivateRoute>} />
+      <Route path="/policy-generator/saved/:id" element={<PrivateRoute><PolicySavedDetail /></PrivateRoute>} />
+      <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/announcements" element={<PrivateRoute><Announcements /></PrivateRoute>} />
       <Route path="*" element={<FallbackRedirect />} />
     </Routes>
